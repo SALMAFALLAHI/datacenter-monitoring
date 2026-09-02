@@ -1,0 +1,29 @@
+﻿name: CD - Deploy to Kubernetes
+
+on:
+  workflow_run:
+    workflows: ["CI Backend", "CI Frontend", "CI ML Service"]
+    types:
+      - completed
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to K8s
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+      - run: kubectl cluster-info
+      - run: kubectl apply -f k8s/namespace.yaml
+      - run: kubectl apply -f k8s/postgres/
+      - run: kubectl apply -f k8s/ml-service/
+      - run: kubectl apply -f k8s/backend/
+      - run: kubectl apply -f k8s/frontend/
+      - run: kubectl apply -f k8s/prometheus/
+      - run: kubectl apply -f k8s/ingress.yaml
+      - run: kubectl get all -n datacenter

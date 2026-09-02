@@ -1,0 +1,76 @@
+<aside class="sidebar" [class.sidebar-collapsed]="collapsed()">
+  <div class="sidebar-header">
+    <button
+      type="button"
+      class="sidebar-toggle"
+      (click)="toggleSidebar()"
+      [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+      [matTooltip]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+      matTooltipPosition="right"
+    >
+      <mat-icon>{{ collapsed() ? 'chevron_right' : 'menu' }}</mat-icon>
+    </button>
+
+    <div class="sidebar-brand">
+      <img src="nouvelair-logo.png" alt="Nouvel Air" class="sidebar-logo" />
+    </div>
+  </div>
+
+  <div class="sidebar-body">
+    <mat-nav-list class="sidebar-nav">
+      <!-- Liens standards filtrés par accès -->
+      <a
+        mat-list-item
+        *ngFor="let item of navItems"
+        [routerLink]="item.link"
+        routerLinkActive="active"
+        [matTooltip]="tooltipFor(item.label)"
+        matTooltipPosition="right"
+        [matTooltipDisabled]="!collapsed()"
+      >
+        <mat-icon>{{ item.icon }}</mat-icon>
+        <span class="nav-label">{{ item.label }}</span>
+      </a>
+
+      <!-- Lien Admin séparé (visible uniquement pour ADMIN) -->
+      <a
+        mat-list-item
+        *ngIf="auth.isAdmin()"
+        routerLink="/admin/utilisateurs"
+        routerLinkActive="active"
+        [matTooltip]="tooltipFor('Utilisateurs')"
+        matTooltipPosition="right"
+        [matTooltipDisabled]="!collapsed()"
+      >
+        <mat-icon>people</mat-icon>
+        <span class="nav-label">Utilisateurs</span>
+      </a>
+    </mat-nav-list>
+
+    <div class="sidebar-user" [class.sidebar-user-collapsed]="collapsed()">
+      <div class="sidebar-user-main" [matTooltip]="collapsed() ? auth.displayName : ''" matTooltipPosition="right" [matTooltipDisabled]="!collapsed()">
+        <div class="sidebar-avatar" aria-hidden="true">
+          <span>{{ auth.initials }}</span>
+        </div>
+
+        <div class="sidebar-user-text">
+          <div class="sidebar-user-name">{{ auth.displayName }}</div>
+          <div class="sidebar-user-role">{{ auth.isAdmin() ? 'Administrateur' : (auth.currentUser$ | async)?.role }}</div>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="sidebar-logout"
+        (click)="logout()"
+        [matTooltip]="collapsed() ? 'Déconnexion' : ''"
+        matTooltipPosition="right"
+        [matTooltipDisabled]="!collapsed()"
+        aria-label="Déconnexion"
+      >
+        <mat-icon>logout</mat-icon>
+        <span class="sidebar-logout-label">Déconnexion</span>
+      </button>
+    </div>
+  </div>
+</aside>

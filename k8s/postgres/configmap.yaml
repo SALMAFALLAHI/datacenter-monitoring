@@ -1,0 +1,8 @@
+﻿apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: datacenter
+data:
+  POSTGRES_DB: "supervision_db"
+  POSTGRES_USER: "supervision_user"

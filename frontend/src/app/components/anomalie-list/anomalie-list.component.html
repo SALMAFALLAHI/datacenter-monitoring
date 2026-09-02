@@ -1,0 +1,189 @@
+<div class="anomalie-container">
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <div class="page-title">
+      <h1>Anomalies</h1>
+      <p *ngIf="centreNom">Datacentre : <strong>{{ centreNom }}</strong></p>
+      <p *ngIf="!centreId" class="text-muted">Aucun datacentre selectionne</p>
+    </div>
+  </div>
+
+  <!-- MESSAGE : aucun centre selectionne -->
+  <div class="alert-warning" *ngIf="!centreId">
+    <i class="fas fa-info-circle"></i>
+    Veuillez selectionner un datacentre dans le <a routerLink="/dashboard">Dashboard</a>.
+  </div>
+
+  <!-- STATS BAR -->
+  <div class="stats-bar" *ngIf="centreId">
+    <div
+      class="stat-card"
+      *ngFor="let s of statuts"
+      [class.active]="statutFiltre === s.value"
+      (click)="statutFiltre = s.value; onFiltreChange()"
+    >
+      <div class="stat-value">{{ stats[s.value] ?? 0 }}</div>
+      <div class="stat-label">{{ s.label }}</div>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading-state" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Chargement des anomalies...</p>
+  </div>
+
+  <!-- BARRE D'ACTIONS PAR LOT -->
+  <div class="batch-bar" *ngIf="selectedCount > 0 && !loading">
+    <span><strong>{{ selectedTotalOccurrences }}</strong> anomalie(s) selectionnee(s) dans {{ selectedCount }} groupe(s)</span>
+    <div class="batch-actions">
+      <button class="btn-batch en-cours" (click)="openDecisionBatch('EN_COURS')">
+        <i class="fas fa-play"></i> En cours
+      </button>
+      <button class="btn-batch traitee" (click)="openDecisionBatch('TRAITEE')">
+        <i class="fas fa-check"></i> Traitee
+      </button>
+      <button class="btn-batch ignoree" (click)="openDecisionBatch('IGNOREE')">
+        <i class="fas fa-ban"></i> Ignorer
+      </button>
+      <button class="btn-batch cancel" (click)="unselectAll()">
+        <i class="fas fa-times"></i> Annuler
+      </button>
+    </div>
+  </div>
+
+  <!-- TABLEAU -->
+  <div class="table-container" *ngIf="centreId && !loading">
+    <table class="anomalies-table">
+      <thead>
+        <tr>
+          <th style="width: 40px">
+            <input type="checkbox" (change)="$event.target.checked ? selectAll() : unselectAll()" />
+          </th>
+          <th>Equipement</th>
+          <th>Type</th>
+          <th>Niveau</th>
+          <th style="width: 80px">Score</th>
+          <th style="width: 110px">Occurrences</th>
+          <th style="width: 100px">Derniere</th>
+          <th style="width: 120px">Statut</th>
+          <th style="width: 140px">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let g of groupes">
+          <!-- Ligne principale -->
+          <tr class="groupe-row" [class.selected]="g.selected">
+            <td><input type="checkbox" [checked]="g.selected" (change)="toggleSelect(g)" /></td>
+            <td><strong>{{ g.nomEquipement }}</strong></td>
+            <td>
+              <span class="type-badge">
+                <i class="fas" [ngClass]="getTypeIcon(g.typeAnomalie)"></i> {{ g.typeAnomalie }}
+              </span>
+            </td>
+            <td><span class="niveau-badge" [ngClass]="getNiveauClass(g.niveau)">{{ g.niveau }}</span></td>
+            <td>{{ g.scoreMax | number: '1.2-2' }}</td>
+            <td>
+              <span class="occurrence-badge" (click)="g.expanded = !g.expanded">
+                x{{ g.nombreOccurrences }}
+                <i class="fas" [ngClass]="g.expanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+              </span>
+            </td>
+            <td class="muted">{{ getTimeAgo(g.dateDerniereDetection) }}</td>
+            <td><span class="statut-badge" [ngClass]="getStatutClass(g.statut)">{{ g.statut }}</span></td>
+            <td>
+              <div class="row-actions">
+                <button class="btn-action en-cours" (click)="openDecisionSingle(g, 'EN_COURS')" title="En cours">
+                  <i class="fas fa-play"></i>
+                </button>
+                <button class="btn-action traitee" (click)="openDecisionSingle(g, 'TRAITEE')" title="Traitee">
+                  <i class="fas fa-check"></i>
+                </button>
+                <button class="btn-action ignoree" (click)="openDecisionSingle(g, 'IGNOREE')" title="Ignorer">
+                  <i class="fas fa-ban"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Expand : timeline des decisions -->
+          <tr class="detail-row" *ngIf="g.expanded">
+            <td colspan="9">
+              <div class="detail-panel">
+                <div class="detail-header">
+                  <h4><i class="fas fa-history"></i> Historique des decisions</h4>
+                  <span class="ids-count">{{ g.idsAnomalies.length }} anomalie(s) concernee(s)</span>
+                </div>
+
+                <div class="timeline" *ngIf="g.decisions.length > 0">
+                  <div class="timeline-item" *ngFor="let d of g.decisions">
+                    <div class="timeline-dot" [ngClass]="d.nouveauStatut.toLowerCase().replace('_', '-')"></div>
+                    <div class="timeline-content">
+                      <div class="timeline-meta">
+                        <strong>{{ d.auteur }}</strong>
+                        <span class="timeline-date">{{ formatDate(d.dateDecision) }}</span>
+                      </div>
+                      <div class="timeline-transition">
+                        <span class="badge-small" [ngClass]="d.ancienStatut.toLowerCase().replace('_', '-')">
+                          {{ d.ancienStatut }}
+                        </span>
+                        <i class="fas fa-arrow-right"></i>
+                        <span class="badge-small" [ngClass]="d.nouveauStatut.toLowerCase().replace('_', '-')">
+                          {{ d.nouveauStatut }}
+                        </span>
+                      </div>
+                      <p class="timeline-comment" *ngIf="d.commentaire">{{ d.commentaire }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="empty-timeline" *ngIf="g.decisions.length === 0">
+                  <i class="fas fa-clipboard"></i> Aucune decision enregistree pour ce groupe.
+                </div>
+              </div>
+            </td>
+          </tr>
+        </ng-container>
+      </tbody>
+    </table>
+
+    <div class="empty-state" *ngIf="groupes.length === 0">
+      <i class="fas fa-check-circle"></i>
+      <p>Aucune anomalie {{ statutFiltre.toLowerCase().replace('_', ' ') }} pour ce datacentre.</p>
+    </div>
+  </div>
+
+  <!-- MODAL DECISION -->
+  <div class="modal-overlay" *ngIf="showDecisionModal" (click)="closeDecisionModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <h3>
+        <i class="fas" [ngClass]="
+            nouveauStatut === 'TRAITEE' ? 'fa-check' :
+            nouveauStatut === 'EN_COURS' ? 'fa-play' : 'fa-ban'
+          "></i>
+        {{ decisionMode === 'batch' ? 'Traitement par lot' : 'Nouvelle decision' }}
+      </h3>
+
+      <div class="modal-info">
+        <span class="badge" [ngClass]="getStatutClass(nouveauStatut)">{{ nouveauStatut }}</span>
+        <span *ngIf="decisionMode === 'batch'">{{ selectedIds.length }} anomalie(s)</span>
+        <span *ngIf="decisionMode === 'single'">{{ decisionTarget?.nomEquipement }} — {{ decisionTarget?.typeAnomalie }}</span>
+      </div>
+
+      <div class="form-group">
+        <label>Commentaire <span class="required">*</span></label>
+        <textarea [(ngModel)]="commentaire" rows="4" placeholder="Decrire la decision prise et les actions en cours..."></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" (click)="closeDecisionModal()">Annuler</button>
+        <button class="btn-submit" [disabled]="!commentaire.trim() || saving" (click)="submitDecision()">
+          <i class="fas" [ngClass]="saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+          {{ saving ? 'Enregistrement...' : 'Confirmer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>

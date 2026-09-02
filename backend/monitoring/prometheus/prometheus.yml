@@ -1,0 +1,48 @@
+# ============================================================
+# PROMETHEUS — CONFIGURATION DATA CENTER NOUVEL AIR
+# REMPLACEZ les IPs par les vraies adresses le jour J
+# ============================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+
+  # --- SERVEURS LINUX ---
+  - job_name: 'serveurs-linux'
+    static_configs:
+      - targets:
+          - ''
+          
+        labels:
+          type: 'serveur'
+          os: 'linux'
+
+  # --- SERVEURS WINDOWS ---
+  - job_name: 'serveurs-windows'
+    static_configs:
+      - targets:
+          - ''
+          
+        labels:
+          type: 'serveur'
+          os: 'windows'
+
+  # --- ROUTEURS CISCO (via SNMP Exporter) ---
+  - job_name: 'routeurs'
+    static_configs:
+      - targets:
+          - ''
+          
+        labels:
+          type: 'routeur'
+          fabricant: 'cisco'
+    metrics_path: /snmp
+    params:
+      module: [cisco]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: __address__
+        replacement: localhost:9116

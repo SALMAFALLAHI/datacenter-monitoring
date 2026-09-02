@@ -1,0 +1,93 @@
+<div class="login-shell">
+  <div class="wave-top" aria-hidden="true">
+    <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
+      <path fill="#0051A1" fill-opacity="0.08"
+        d="M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z">
+      </path>
+    </svg>
+  </div>
+
+  <div class="login-card" role="main" aria-labelledby="loginTitle">
+    <div class="logo-ring">
+      <img src="nouvelair-logo.png" alt="Nouvelair" class="logo" />
+    </div>
+
+    <h1 id="loginTitle">Nouvelair Monitoring</h1>
+    <p class="subtitle">Connexion à la plateforme de supervision</p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <div class="input-wrap">
+          <i class="fas fa-envelope input-icon"></i>
+          <input
+            id="email"
+            #emailInput
+            type="email"
+            formControlName="email"
+            autocomplete="email"
+            placeholder="votre@email.com"
+            [class.invalid]="form.get('email')?.touched && form.get('email')?.invalid"
+          />
+        </div>
+        <div class="field-error" *ngIf="form.get('email')?.touched && form.get('email')?.invalid">
+          <i class="fas fa-exclamation-circle"></i>
+          <span *ngIf="form.get('email')?.errors?.['required']">Email requis</span>
+          <span *ngIf="form.get('email')?.errors?.['email']">Format d'email invalide</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Mot de passe</label>
+        <div class="input-wrap">
+          <i class="fas fa-lock input-icon"></i>
+          <input
+            id="password"
+            [type]="showPassword ? 'text' : 'password'"
+            formControlName="password"
+            autocomplete="current-password"
+            placeholder="••••••••"
+            [class.invalid]="form.get('password')?.touched && form.get('password')?.invalid"
+          />
+          <button
+            type="button"
+            class="toggle"
+            (click)="onTogglePassword()"
+            [attr.aria-pressed]="showPassword"
+            aria-label="Afficher ou masquer le mot de passe">
+            <i class="fas" [ngClass]="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+          </button>
+        </div>
+        <div class="field-error" *ngIf="form.get('password')?.touched && form.get('password')?.invalid">
+          <i class="fas fa-exclamation-circle"></i>
+          <span>Mot de passe requis</span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button
+          class="submit"
+          type="submit"
+          [disabled]="form.invalid || loading"
+          [class.is-disabled]="form.invalid || loading">
+          <span *ngIf="!loading">
+            <i class="fas fa-sign-in-alt"></i> Se connecter
+          </span>
+          <span *ngIf="loading" class="spinner-wrap">
+            <span class="spinner" aria-hidden="true"></span>
+            Connexion en cours...
+          </span>
+        </button>
+      </div>
+    </form>
+
+    <div class="error-toast" *ngIf="errorMessage" role="alert" aria-live="assertive">
+      <i class="fas fa-times-circle"></i>
+      <span>{{ errorMessage }}</span>
+    </div>
+  </div>
+
+  <footer class="login-footer">
+    <p>&copy; {{ currentYear }} Nouvelair. Tous droits réservés.</p>
+  </footer>
+</div>

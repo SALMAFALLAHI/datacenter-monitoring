@@ -1,0 +1,218 @@
+<section class="master-detail-page">
+  <header class="page-title">
+    <h1>Centres de Donnees et Equipements</h1>
+    <p>Gestion complete des centres et de leur inventaire.</p>
+  </header>
+
+  <p class="message success" *ngIf="message">{{ message }}</p>
+  <p class="message error" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+  <div class="master-detail-layout">
+    <aside class="master-panel">
+      <div class="panel-header">
+        <h2>Centres de Donnees</h2>
+        <button class="btn btn-primary" type="button" (click)="openCentreForm()">Ajouter un centre</button>
+      </div>
+
+      <div class="loading" *ngIf="loadingCentres">Chargement des centres...</div>
+
+      <div class="empty" *ngIf="!loadingCentres && centres.length === 0">Aucun centre disponible.</div>
+
+      <ul class="centre-list" *ngIf="!loadingCentres && centres.length > 0">
+        <li
+          *ngFor="let centre of centres; trackBy: trackByCentre"
+          [class.active]="selectedCentre === centre"
+          (click)="selectCentre(centre)"
+        >
+          <div class="centre-main">
+            <strong>{{ centre.nom }}</strong>
+            <small>{{ centre.localisation }}</small>
+          </div>
+          <div class="centre-actions" (click)="$event.stopPropagation()">
+            <button class="btn btn-secondary" type="button" (click)="editCentre(centre)">Modifier</button>
+            <button
+              class="btn btn-danger"
+              type="button"
+              (click)="deleteCentre(centre)"
+              [disabled]="deletingCentreId === (centre.idCentre || centre.id)"
+            >
+              {{ deletingCentreId === (centre.idCentre || centre.id) ? 'Suppression...' : 'Supprimer' }}
+            </button>
+          </div>
+        </li>
+      </ul>
+
+      <form class="inline-form" *ngIf="showCentreForm" [formGroup]="centreForm" (ngSubmit)="submitCentre()" novalidate>
+        <h3>{{ editingCentreId ? 'Modifier le centre' : 'Ajouter un centre' }}</h3>
+        <label>
+          <span>Nom</span>
+          <input type="text" formControlName="nom" />
+        </label>
+        <label>
+          <span>Localisation</span>
+          <input type="text" formControlName="localisation" />
+        </label>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit" [disabled]="savingCentre">
+            {{ savingCentre ? 'Enregistrement...' : 'Valider' }}
+          </button>
+          <button class="btn btn-secondary" type="button" (click)="cancelCentreForm()">Annuler</button>
+        </div>
+      </form>
+    </aside>
+
+    <section class="detail-panel" *ngIf="selectedCentre as centre; else noSelection">
+      <div class="panel-header">
+        <h2>{{ centre.nom }}</h2>
+        <div class="header-buttons">
+          <button class="btn btn-secondary" type="button" (click)="openScan('preview')">Scanner</button>
+          <button class="btn btn-primary" type="button" (click)="openScan('scanAdd')">Scanner et Ajouter</button>
+          <button class="btn btn-accent" type="button" (click)="openEquipementForm()">Ajouter manuellement</button>
+        </div>
+      </div>
+
+      <form class="inline-form scan-form" *ngIf="showScanForm" [formGroup]="scanForm" (ngSubmit)="runScan()" novalidate>
+        <h3>{{ scanMode === 'scanAdd' ? 'Scan et ajout automatique' : 'Scan preview' }}</h3>
+        <div class="scan-grid">
+          <label>
+            <span>Plage IP debut</span>
+            <input type="text" formControlName="debut" placeholder="192.168.1.1" />
+          </label>
+          <label>
+            <span>Plage IP fin</span>
+            <input type="text" formControlName="fin" placeholder="192.168.1.254" />
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit" [disabled]="scanning">
+            {{ scanning ? 'Scan en cours...' : 'Lancer' }}
+          </button>
+        </div>
+      </form>
+
+      <div class="preview-card" *ngIf="detectedEquipements.length > 0">
+        <h3>Resultats detectes</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Adresse IP</th>
+              <th>Type</th>
+              <th>Systeme</th>
+              <th>Etat</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let detected of detectedEquipements; trackBy: trackByDetecte">
+              <td>{{ detected.nom || '-' }}</td>
+              <td>{{ detected.adresseIP || detected.ip || '-' }}</td>
+              <td>{{ detected.type || '-' }}</td>
+              <td>{{ detected.systeme || '-' }}</td>
+              <td>{{ detected.etat || 'Actif' }}</td>
+              <td>
+                <button class="btn btn-accent" type="button" (click)="addDetectedEquipement(detected)">
+                  Valider et ajouter
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <form class="inline-form" *ngIf="showEquipementForm" [formGroup]="equipementForm" (ngSubmit)="submitEquipement()" novalidate>
+        <h3>{{ editingEquipementId ? 'Modifier equipement' : 'Ajouter equipement' }}</h3>
+        <div class="equipement-grid">
+          <label>
+            <span>Nom</span>
+            <input type="text" formControlName="nom" />
+          </label>
+          <label>
+            <span>Type</span>
+            <input type="text" formControlName="type" />
+          </label>
+          <label>
+            <span>Adresse IP</span>
+            <input type="text" formControlName="adresseIP" />
+          </label>
+          <label>
+            <span>Systeme</span>
+            <select formControlName="systeme">
+              <option value="LINUX">LINUX</option>
+              <option value="WINDOWS">WINDOWS</option>
+            </select>
+          </label>
+          <label>
+            <span>Etat</span>
+            <select formControlName="etat">
+              <option value="Actif">Actif</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Inactif">Inactif</option>
+            </select>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit" [disabled]="savingEquipement">
+            {{ savingEquipement ? 'Enregistrement...' : 'Valider' }}
+          </button>
+          <button class="btn btn-secondary" type="button" (click)="cancelEquipementForm()">Annuler</button>
+        </div>
+      </form>
+
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Equipements du centre</h3>
+          <button class="btn btn-secondary" type="button" (click)="loadEquipementsForCentre()" [disabled]="loadingEquipements">
+            Rafraichir
+          </button>
+        </div>
+
+        <div class="loading" *ngIf="loadingEquipements">Chargement des equipements...</div>
+        <div class="empty" *ngIf="!loadingEquipements && equipements.length === 0">Aucun equipement pour ce centre.</div>
+
+        <div class="table-wrap" *ngIf="!loadingEquipements && equipements.length > 0">
+          <table>
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Adresse IP</th>
+                <th>Type</th>
+                <th>Systeme</th>
+                <th>Etat</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of equipements; trackBy: trackByEquipement">
+                <td>{{ item.nom }}</td>
+                <td>{{ item.adresseIP }}</td>
+                <td>{{ item.type }}</td>
+                <td>{{ item.systeme }}</td>
+                <td><span class="badge" [ngClass]="getEtatClass(item.etat)">{{ item.etat }}</span></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn btn-secondary" type="button" (click)="editEquipement(item)">Modifier</button>
+                    <button
+                      class="btn btn-danger"
+                      type="button"
+                      (click)="deleteEquipement(item)"
+                      [disabled]="deletingEquipementId === item.idEquipement"
+                    >
+                      {{ deletingEquipementId === item.idEquipement ? 'Suppression...' : 'Supprimer' }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <ng-template #noSelection>
+    <section class="detail-panel empty-state">
+      Selectionnez un centre pour afficher ses equipements.
+    </section>
+  </ng-template>
+</section>

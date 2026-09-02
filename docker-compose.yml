@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: datacenter-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: supervision_db
+      POSTGRES_USER: supervision_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - datacenter-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U supervision_user -d supervision_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: datacenter-ml
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    networks:
+      - datacenter-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: datacenter-backend
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/supervision_db
+      SPRING_DATASOURCE_USERNAME: supervision_user
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-changeme}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      ML_SERVICE_URL: http://ml-service:8000
+      APP_JWT_SECRET: ${JWT_SECRET:-changeme}
+      APP_JWT_EXPIRATION_MS: 86400000
+      SPRING_MAIL_HOST: smtp.gmail.com
+      SPRING_MAIL_PORT: 587
+      SPRING_MAIL_USERNAME: ${MAIL_USER:-your-email@gmail.com}
+      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD:-changeme}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
+    ports:
+      - "8080:8080"
+    networks:
+      - datacenter-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: datacenter-frontend
+    restart: unless-stopped
+    ports:
+      - "4200:80"
+    networks:
+      - datacenter-network
+    depends_on:
+      - backend
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: datacenter-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - datacenter-network
+
+volumes:
+  postgres_data:
+
+networks:
+  datacenter-network:
+    driver: bridge

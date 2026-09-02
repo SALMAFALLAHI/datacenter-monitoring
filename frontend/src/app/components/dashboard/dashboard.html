@@ -1,0 +1,154 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Dashboard</h1>
+    <p>Vue d'ensemble de vos data centers en temps reel</p>
+  </div>
+
+  <div class="header-center">
+    <div class="datacenter-selector">
+      <label><i class="fas fa-building"></i> Datacenter</label>
+      <select [ngModel]="centreSelectionne" (ngModelChange)="onCentreChange($event)">
+        <option [ngValue]="null">Tous les datacenters</option>
+        <option *ngFor="let c of centres" [ngValue]="c.idCentre">{{ c.nom }}</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="header-actions">
+    <button class="btn btn-secondary" (click)="refresh()" [disabled]="loadingDashboard">
+      <i class="fas fa-sync-alt"></i> {{ loadingDashboard ? 'Actualisation...' : 'Rafraichir' }}
+    </button>
+  </div>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-header"><div class="kpi-icon blue"><i class="fas fa-server"></i></div></div>
+    <div class="kpi-value">{{ equipementsActifs }}</div>
+    <div class="kpi-label">Equipements actifs</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-header"><div class="kpi-icon green"><i class="fas fa-check-circle"></i></div></div>
+    <div class="kpi-value" *ngIf="uptimeGlobal !== null">{{ uptimeGlobal }}%</div>
+    <div class="kpi-value kpi-na" *ngIf="uptimeGlobal === null">N/A</div>
+    <div class="kpi-label">Uptime global</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-header"><div class="kpi-icon amber"><i class="fas fa-exclamation-triangle"></i></div></div>
+    <div class="kpi-value">{{ alertesActives }}</div>
+    <div class="kpi-label">Alertes actives</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-header"><div class="kpi-icon red"><i class="fas fa-thermometer-half"></i></div></div>
+    <div class="kpi-value" *ngIf="temperatureMoyenne !== null">{{ temperatureMoyenne }}C</div>
+    <div class="kpi-value kpi-na" *ngIf="temperatureMoyenne === null">N/A</div>
+    <div class="kpi-label">Temperature moyenne</div>
+  </div>
+</div>
+
+<div class="chart-grid">
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">Utilisation CPU (24h)</div>
+      <div class="chart-badge">Temps reel</div>
+    </div>
+    <div class="chart-container"><canvas #cpuChart></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">Trafic Reseau (Mo/s)</div>
+      <div class="chart-badge">Live</div>
+    </div>
+    <div class="chart-container"><canvas #networkChart></canvas></div>
+  </div>
+</div>
+
+<div class="gauge-grid">
+  <div class="gauge-card">
+    <div class="gauge-wrapper">
+      <svg class="gauge-svg" width="140" height="140" viewBox="0 0 140 140">
+        <circle class="gauge-bg" cx="70" cy="70" r="58"/>
+        <circle
+          class="gauge-fill"
+          cx="70" cy="70" r="58"
+          stroke="#3b82f6"
+          [attr.stroke-dasharray]="gaugeCircumference"
+          [attr.stroke-dashoffset]="getGaugeOffset(cpuMoyen)"
+        />
+      </svg>
+      <div class="gauge-text">{{ cpuMoyen | number:'1.0-0' }}%</div>
+    </div>
+    <div class="gauge-label">CPU Moyen</div>
+    <div class="gauge-sublabel">{{ equipementsActifs }} serveur{{ equipementsActifs > 1 ? 's' : '' }} actif{{ equipementsActifs > 1 ? 's' : '' }}</div>
+  </div>
+
+  <div class="gauge-card">
+    <div class="gauge-wrapper">
+      <svg class="gauge-svg" width="140" height="140" viewBox="0 0 140 140">
+        <circle class="gauge-bg" cx="70" cy="70" r="58"/>
+        <circle
+          class="gauge-fill"
+          cx="70" cy="70" r="58"
+          stroke="#22c55e"
+          [attr.stroke-dasharray]="gaugeCircumference"
+          [attr.stroke-dashoffset]="getGaugeOffset(ramPctMoyen)"
+        />
+      </svg>
+      <div class="gauge-text">{{ ramPctMoyen | number:'1.0-0' }}%</div>
+    </div>
+    <div class="gauge-label">Memoire</div>
+    <div class="gauge-sublabel">{{ ramUtiliseeGb | number:'1.1-1' }} GB / {{ ramTotaleGb | number:'1.1-1' }} GB</div>
+  </div>
+
+  <div class="gauge-card">
+    <div class="gauge-wrapper">
+      <svg class="gauge-svg" width="140" height="140" viewBox="0 0 140 140">
+        <circle class="gauge-bg" cx="70" cy="70" r="58"/>
+        <circle
+          class="gauge-fill"
+          cx="70" cy="70" r="58"
+          stroke="#f59e0b"
+          [attr.stroke-dasharray]="gaugeCircumference"
+          [attr.stroke-dashoffset]="getGaugeOffset(diskPctMoyen)"
+        />
+      </svg>
+      <div class="gauge-text">{{ diskPctMoyen | number:'1.0-0' }}%</div>
+    </div>
+    <div class="gauge-label">Disque</div>
+    <div class="gauge-sublabel">{{ diskPctMoyen | number:'1.0-0' }}% utilise (moyenne)</div>
+  </div>
+</div>
+
+<div class="chart-grid single">
+  <div class="chart-card">
+    <div class="chart-header"><div class="chart-title">Alertes par Categorie</div></div>
+    <div class="chart-container"><canvas #alertChart></canvas></div>
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="table-header">
+    <div class="table-title">Alertes Recentes</div>
+    <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;">Voir tout</button>
+  </div>
+
+  <div class="empty" *ngIf="alertesRecentes.length === 0">Aucune alerte recente.</div>
+
+  <div class="alert-list" *ngIf="alertesRecentes.length > 0">
+    <div class="alert-item" *ngFor="let alerte of alertesRecentes">
+      <div class="alert-icon" [ngClass]="getNiveauClass(alerte.niveau)">
+        <i class="fas" [ngClass]="getAlertIcon(alerte.typeAnomalie)"></i>
+      </div>
+      <div class="alert-content">
+        <div class="alert-title">{{ alerte.description || (alerte.typeAnomalie + ' - ' + alerte.nomEquipement) }}</div>
+        <div class="alert-time">{{ getTimeAgo(alerte.dateDetection) }} - {{ alerte.nomEquipement }}</div>
+      </div>
+      <span class="status-badge" [ngClass]="getNiveauClass(alerte.niveau)">
+        <span class="status-dot" [ngClass]="getNiveauClass(alerte.niveau)"></span> {{ getNiveauLabel(alerte.niveau) }}
+      </span>
+    </div>
+  </div>
+</div>

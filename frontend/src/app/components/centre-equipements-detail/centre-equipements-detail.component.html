@@ -1,0 +1,229 @@
+
+
+Centre equipements detail.component · HTML
+<section class="detail-page">
+  <a class="back-link" routerLink="/centres">&larr; Retour aux centres</a>
+ 
+  <header class="page-header">
+    <div>
+      <h1>{{ centre?.nom || 'Centre' }}</h1>
+      <p>{{ centre?.localisation || '' }}</p>
+    </div>
+    <div class="actions-row">
+      <button class="btn btn-secondary" type="button" (click)="openScan('preview')">Scanner</button>
+      <button class="btn btn-primary" type="button" (click)="openScan('scanAdd')">Scanner et Ajouter</button>
+      <button class="btn btn-accent" type="button" (click)="openManualAddForm()">Ajouter manuellement</button>
+    </div>
+  </header>
+ 
+  <p class="message success" *ngIf="message">{{ message }}</p>
+  <p class="message error" *ngIf="errorMessage">{{ errorMessage }}</p>
+ 
+  <form class="panel" *ngIf="showScanForm" [formGroup]="scanForm" (ngSubmit)="runScan()" novalidate>
+    <h2>{{ scanMode === 'scanAdd' ? 'Scanner et Ajouter' : 'Scanner (preview)' }}</h2>
+    <div class="form-grid">
+      <label>
+        <span>Plage IP debut</span>
+        <input type="text" formControlName="debut" placeholder="192.168.1.1" />
+      </label>
+      <label>
+        <span>Plage IP fin</span>
+        <input type="text" formControlName="fin" placeholder="192.168.1.254" />
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit" [disabled]="scanning">
+        {{ scanning ? 'Scan en cours...' : 'Lancer' }}
+      </button>
+    </div>
+  </form>
+ 
+  <section class="panel" *ngIf="detectedEquipements.length > 0">
+    <h2>Equipements detectes</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Adresse IP</th>
+            <th>Type</th>
+            <th>Systeme</th>
+            <th>Etat</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of detectedEquipements; trackBy: trackByDetecte">
+            <td>{{ item.nom || '-' }}</td>
+            <td>{{ item.adresseIP || item.ip || '-' }}</td>
+            <td>{{ item.type || '-' }}</td>
+            <td>{{ item.systeme || '-' }}</td>
+            <td>{{ item.etat || 'Actif' }}</td>
+            <td>
+              <button class="btn btn-accent" type="button" (click)="addDetectedEquipement(item)" [disabled]="isAddingDetected(item)">
+                {{ isAddingDetected(item) ? 'Ajout...' : 'Valider et ajouter' }}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+ 
+  <form class="panel" *ngIf="showEquipementForm" [formGroup]="equipementForm" (ngSubmit)="submitEquipement()" novalidate>
+    <h2>{{ editingEquipementId ? 'Modifier equipement' : 'Ajouter equipement' }}</h2>
+    <div class="form-grid equipement-grid">
+      <label>
+        <span>Nom</span>
+        <input type="text" formControlName="nom" />
+      </label>
+      <label>
+        <span>Type</span>
+        <input type="text" formControlName="type" />
+      </label>
+      <label>
+        <span>Adresse IP</span>
+        <input type="text" formControlName="adresseIP" />
+      </label>
+      <label>
+        <span>Systeme</span>
+        <select formControlName="systeme">
+          <option value="LINUX">LINUX</option>
+          <option value="WINDOWS">WINDOWS</option>
+        </select>
+      </label>
+      <label>
+        <span>Etat</span>
+        <select formControlName="etat">
+          <option value="Actif">Actif</option>
+          <option value="Maintenance">Maintenance</option>
+          <option value="Inactif">Inactif</option>
+        </select>
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit" [disabled]="savingEquipement">
+        {{ savingEquipement ? 'Enregistrement...' : 'Valider' }}
+      </button>
+      <button class="btn btn-secondary" type="button" (click)="cancelEquipementForm()">Annuler</button>
+    </div>
+  </form>
+ 
+  <section class="panel">
+    <div class="table-header">
+      <h2>Equipements du centre</h2>
+      <button class="btn btn-secondary" type="button" (click)="loadEquipements()" [disabled]="loadingEquipements">Rafraichir</button>
+    </div>
+ 
+    <div class="loading" *ngIf="loadingEquipements">Chargement des equipements...</div>
+    <div class="empty" *ngIf="!loadingEquipements && equipements.length === 0">Aucun equipement trouve pour ce centre.</div>
+ 
+    <div class="table-wrap" *ngIf="!loadingEquipements && equipements.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Adresse IP</th>
+            <th>Type</th>
+            <th>Systeme</th>
+            <th>Etat</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of equipements; trackBy: trackByEquipement" (click)="selectEquipement(item)">
+            <td>{{ item.nom }}</td>
+            <td>{{ item.adresseIP }}</td>
+            <td>{{ item.type }}</td>
+            <td>{{ item.systeme }}</td>
+            <td><span class="badge" [ngClass]="getEtatClass(item.etat)">{{ item.etat }}</span></td>
+            <td>
+              <div class="row-actions">
+                <button class="btn btn-secondary" type="button" (click)="editEquipement(item)">Modifier</button>
+                <button class="btn btn-danger" type="button" (click)="deleteEquipement(item)" [disabled]="deletingEquipementId === item.idEquipement">
+                  {{ deletingEquipementId === item.idEquipement ? 'Suppression...' : 'Supprimer' }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+ 
+  <!-- ===== MODAL METRIQUES + GRAPHIQUES ===== -->
+  <div class="metrics-modal-backdrop" *ngIf="selectedEquipement" (click)="closeEquipementMetrics()">
+    <section class="metrics-modal" (click)="$event.stopPropagation()">
+      <div class="table-header">
+        <h2>Metriques de {{ selectedEquipement?.nom }}</h2>
+        <button
+          class="btn btn-secondary"
+          type="button"
+          (click)="loadEquipementMetriques(selectedEquipement!); loadEquipementHistorique(selectedEquipement!)"
+        >
+          Rafraichir
+        </button>
+      </div>
+      <button class="modal-close" type="button" aria-label="Fermer" (click)="closeEquipementMetrics()">&times;</button>
+ 
+      <div class="loading" *ngIf="loadingMetriques">Chargement des metriques...</div>
+      <div class="metric-summary" *ngIf="!loadingMetriques && latestMetric; else noLatestMetric">
+        <div class="metric-card"><span>CPU</span><strong>{{ latestMetric?.cpu | number:'1.0-1' }}%</strong></div>
+        <div class="metric-card"><span>RAM</span><strong>{{ latestMetric?.ram | number:'1.0-1' }}%</strong></div>
+        <div class="metric-card"><span>Disque</span><strong>{{ latestMetric?.disque | number:'1.0-1' }}%</strong></div>
+        <div class="metric-card"><span>Reseau</span><strong>{{ latestMetric?.reseau | number:'1.0-1' }} MB/s</strong></div>
+        <div class="metric-card"><span>Collecte</span><strong>{{ latestMetric?.dateCollecte | date:'HH:mm:ss' }}</strong></div>
+      </div>
+      <ng-template #noLatestMetric>
+        <div class="empty">Aucune metrique disponible pour cet equipement.</div>
+      </ng-template>
+ 
+      <!-- ===== GRAPHIQUES HISTORIQUE DE L'EQUIPEMENT SELECTIONNE ===== -->
+      <div class="modal-charts">
+        <div class="loading" *ngIf="loadingHistorique">Chargement de l'historique...</div>
+ 
+        <div class="chart-card">
+          <div class="chart-header"><div class="chart-title">CPU & Memoire</div></div>
+          <div class="chart-container"><canvas #modalCpuChart></canvas></div>
+        </div>
+ 
+        <div class="chart-card">
+          <div class="chart-header"><div class="chart-title">Trafic Reseau</div></div>
+          <div class="chart-container"><canvas #modalNetChart></canvas></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

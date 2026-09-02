@@ -1,0 +1,109 @@
+---
+- name: "DÉPLOIEMENT NODE EXPORTER — SERVEURS LINUX"
+  hosts: serveurs_linux
+  become: yes
+  gather_facts: yes
+
+  vars:
+    node_exporter_version: "1.8.1"
+    node_exporter_port: 9100
+
+  tasks:
+    - name: Télécharger Node Exporter
+      get_url:
+        url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+        dest: /tmp/node_exporter.tar.gz
+        mode: '0644'
+      retries: 3
+      delay: 5
+
+    - name: Extraire l'archive
+      unarchive:
+        src: /tmp/node_exporter.tar.gz
+        dest: /tmp
+        remote_src: yes
+        creates: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64"
+
+    - name: Copier le binaire
+      copy:
+        src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+        dest: /usr/local/bin/node_exporter
+        mode: '0755'
+        remote_src: yes
+
+    - name: Créer l'utilisateur système
+      user:
+        name: node_exporter
+        system: yes
+        shell: /bin/false
+        create_home: no
+
+    - name: Créer le service systemd
+      copy:
+        content: |
+          [Unit]
+          Description=Node Exporter
+          After=network.target
+          [Service]
+          Type=simple
+          User=node_exporter
+          Group=node_exporter
+          ExecStart=/usr/local/bin/node_exporter --web.listen-address=:9100
+          Restart=always
+          RestartSec=5
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/node_exporter.service
+
+    - name: Recharger systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Démarrer et activer Node Exporter
+      systemd:
+        name: node_exporter
+        state: started
+        enabled: yes
+
+    - name: Vérifier que Node Exporter répond
+      uri:
+        url: "http://localhost:{{ node_exporter_port }}/metrics"
+        method: GET
+        status_code: 200
+      register: health_check
+      retries: 5
+      delay: 2
+      until: health_check.status == 200
+
+    - name: Afficher confirmation
+      debug:
+        msg: "✅ Node Exporter OK sur {{ inventory_hostname }}"
+
+- name: "ACTIVATION SNMP — ROUTEURS CISCO"
+  hosts: routeurs
+  gather_facts: no
+  connection: network_cli
+
+  vars:
+    ansible_network_os: ios
+    ansible_user: admin
+    ansible_ssh_pass: "mot_de_passe_cisco"
+    snmp_community: "nouvelair"
+
+  tasks:
+    - name: Activer SNMP v2c
+      ios_config:
+        lines:
+          - "snmp-server community {{ snmp_community }} RO"
+          - "snmp-server enable traps"
+        save_when: changed
+
+    - name: Vérifier SNMP
+      ios_command:
+        commands:
+          - show snmp community
+      register: snmp_verif
+
+    - name: Afficher résultat
+      debug:
+        var: snmp_verif.stdout_lines

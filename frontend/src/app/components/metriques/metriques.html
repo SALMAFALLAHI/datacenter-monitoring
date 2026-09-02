@@ -1,0 +1,33 @@
+<div class="metriques-container">
+  <h2>Tableau de bord des metriques</h2>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>CPU & Memoire par serveur</h3>
+      <div class="chart-wrapper">
+        <canvas #serverCpuChart></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Reseau (historique)</h3>
+      <div class="chart-wrapper">
+        <canvas #latencyChart></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Stockage par serveur</h3>
+      <div class="chart-wrapper">
+        <canvas #storageChart></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Incidents (historique)</h3>
+      <div class="chart-wrapper">
+        <canvas #incidentChart></canvas>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,324 @@
+/* ============================================
+   SIDEBAR — Corrigé pour votre template Angular
+   ============================================ */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  width: 240px;
+  background: #0b1a30;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  z-index: 1000;
+  font-family: 'Inter', 'Roboto', sans-serif;
+  transition: width 0.3s ease;
+}
+
+:host(.sidebar-collapsed) {
+  width: 72px;
+}
+
+/* ============================================
+   HEADER
+   ============================================ */
+.sidebar-header {
+  height: 64px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+/* Bouton toggle */
+.sidebar-toggle {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #8aa4c8;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* Logo */
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.sidebar-logo {
+  height: 40px;
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+  opacity: 0.95;
+}
+
+/* ============================================
+   BODY (contient nav + user)
+   ============================================ */
+.sidebar-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ============================================
+   NAVIGATION — Surcharge Angular Material
+   ============================================ */
+.sidebar-nav {
+  flex: 1;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  background: transparent !important;
+}
+
+/* Items de nav */
+::ng-deep .sidebar-nav .mat-mdc-list-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  color: #8aa4c8 !important;
+  text-decoration: none !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s !important;
+  cursor: pointer !important;
+  border: none !important;
+  background: transparent !important;
+  width: 100% !important;
+  text-align: left !important;
+  position: relative !important;
+  height: auto !important;
+  min-height: 44px !important;
+  margin: 0 !important;
+}
+
+::ng-deep .sidebar-nav .mat-mdc-list-item:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #fff !important;
+}
+
+::ng-deep .sidebar-nav .mat-mdc-list-item.active,
+::ng-deep .sidebar-nav .mat-mdc-list-item.router-link-active {
+  background: rgba(0, 81, 161, 0.15) !important;
+  color: #3b82f6 !important;
+}
+
+::ng-deep .sidebar-nav .mat-mdc-list-item.active::before,
+::ng-deep .sidebar-nav .mat-mdc-list-item.router-link-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: #0051a1;
+  border-radius: 0 3px 3px 0;
+}
+
+/* Icônes */
+::ng-deep .sidebar-nav .mat-mdc-list-item .mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: inherit;
+  flex-shrink: 0;
+  margin: 0 !important;
+}
+
+/* Texte des items */
+::ng-deep .sidebar-nav .mat-mdc-list-item .mdc-list-item__primary-text {
+  color: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* ============================================
+   SECTION UTILISATEUR (footer)
+   ============================================ */
+.sidebar-user {
+  padding: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.sidebar-user-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sidebar-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0051a1, #0077e6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.sidebar-user-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.sidebar-user-name {
+  font-size: 13px;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-role {
+  font-size: 11px;
+  color: #8aa4c8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================
+   BOUTON DÉCONNEXION
+   ============================================ */
+.sidebar-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  width: 100%;
+  font-family: 'Inter', 'Roboto', sans-serif;
+  transition: all 0.2s;
+}
+
+.sidebar-logout:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.sidebar-logout mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* ============================================
+   ÉTAT COLLAPSED
+   ============================================ */
+:host(.sidebar-collapsed) .sidebar-logo,
+:host(.sidebar-collapsed) .nav-label,
+:host(.sidebar-collapsed) .sidebar-user-text,
+:host(.sidebar-collapsed) .sidebar-logout-label {
+  display: none !important;
+}
+
+:host(.sidebar-collapsed) .sidebar-header {
+  justify-content: center;
+  padding: 0 10px;
+}
+
+:host(.sidebar-collapsed) .sidebar-brand {
+  display: none;
+}
+
+:host(.sidebar-collapsed) ::ng-deep .sidebar-nav .mat-mdc-list-item {
+  justify-content: center !important;
+  padding: 12px !important;
+}
+
+:host(.sidebar-collapsed) ::ng-deep .sidebar-nav .mat-mdc-list-item .mdc-list-item__primary-text {
+  display: none !important;
+}
+
+:host(.sidebar-collapsed) .sidebar-user-main {
+  justify-content: center;
+}
+
+:host(.sidebar-collapsed) .sidebar-logout {
+  padding: 10px;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+  :host {
+    width: 72px;
+  }
+
+  :host .sidebar-logo,
+  :host .nav-label,
+  :host .sidebar-user-text,
+  :host .sidebar-logout-label {
+    display: none !important;
+  }
+
+  :host .sidebar-header {
+    justify-content: center;
+    padding: 0 10px;
+  }
+
+  :host .sidebar-brand {
+    display: none;
+  }
+
+  :host ::ng-deep .sidebar-nav .mat-mdc-list-item {
+    justify-content: center !important;
+    padding: 12px !important;
+  }
+
+  :host ::ng-deep .sidebar-nav .mat-mdc-list-item .mdc-list-item__primary-text {
+    display: none !important;
+  }
+
+  :host .sidebar-user-main {
+    justify-content: center;
+  }
+
+  :host .sidebar-logout {
+    padding: 10px;
+  }
+}

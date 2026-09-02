@@ -1,0 +1,155 @@
+<div class="user-management-container">
+  <div class="header">
+    <h2>Gestion des Utilisateurs</h2>
+    <button class="btn btn-primary" (click)="showForm = !showForm">
+      {{ showForm ? 'Annuler' : '+ Nouvel utilisateur' }}
+    </button>
+  </div>
+
+  <div *ngIf="error" class="alert alert-error">{{ error }}</div>
+  <div *ngIf="successMessage" class="alert alert-success">{{ successMessage }}</div>
+
+  <!-- Formulaire de création -->
+  <div class="card form-card" *ngIf="showForm">
+    <h3>Créer un nouvel utilisateur</h3>
+    <form [formGroup]="userForm" (ngSubmit)="onSubmit()">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Prénom</label>
+          <input type="text" formControlName="prenom" placeholder="Prénom" />
+        </div>
+        <div class="form-group">
+          <label>Nom *</label>
+          <input type="text" formControlName="nom" placeholder="Nom" />
+          <small class="field-error" *ngIf="userForm.get('nom')?.invalid && userForm.get('nom')?.touched">
+            Le nom est obligatoire
+          </small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" formControlName="email" placeholder="email@exemple.com" />
+          <small class="field-error" *ngIf="userForm.get('email')?.invalid && userForm.get('email')?.touched">
+            Email invalide
+          </small>
+        </div>
+        <div class="form-group">
+          <label>Mot de passe *</label>
+          <input type="password" formControlName="password" placeholder="Min. 6 caractères" />
+          <small class="field-error" *ngIf="userForm.get('password')?.invalid && userForm.get('password')?.touched">
+            Min. 6 caractères
+          </small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Rôle *</label>
+          <select formControlName="role" (change)="onRoleChange()">
+            <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
+          </select>
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" formControlName="actif" /> Utilisateur actif
+          </label>
+        </div>
+      </div>
+
+      <!-- Accès Dashboard -->
+      <div class="section">
+        <label>Accès au Dashboard</label>
+        <div class="modules-grid">
+          <div
+            *ngFor="let mod of modules"
+            class="module-chip"
+            [class.selected]="isModuleSelected(mod.key)"
+            [class.disabled]="userForm.get('role')?.value === 'ADMIN'"
+            (click)="toggleModule(mod.key)">
+            <span class="icon">{{ mod.icon }}</span>
+            <span>{{ mod.label }}</span>
+          </div>
+        </div>
+        <small *ngIf="userForm.get('role')?.value === 'ADMIN'" class="hint">
+          L'administrateur a automatiquement accès à tous les modules.
+        </small>
+      </div>
+
+      <!-- Centres assignés -->
+      <div class="section" *ngIf="availableCentres.length > 0">
+        <label>Centres de données assignés</label>
+        <div class="centres-grid">
+          <div
+            *ngFor="let centre of availableCentres"
+            class="centre-chip"
+            [class.selected]="isCentreSelected(centre.id)"
+            (click)="toggleCentre(centre.id)">
+            {{ centre.nom }}
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" [disabled]="userForm.invalid || loading" class="btn btn-primary">
+        {{ loading ? 'Création...' : 'Créer l\'utilisateur' }}
+      </button>
+    </form>
+  </div>
+
+  <!-- Liste des utilisateurs -->
+  <div class="card table-card">
+    <h3>Utilisateurs existants</h3>
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Email</th>
+            <th>Rôle</th>
+            <th>Accès</th>
+            <th>Centres</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let user of users">
+            <td>{{ user.fullName }}</td>
+            <td>{{ user.email }}</td>
+            <td>
+              <span class="badge" [class]="'badge-' + user.role">{{ user.role }}</span>
+            </td>
+            <td>
+              <div class="access-tags">
+                <span *ngFor="let acc of user.dashboardAccess" class="tag">
+                  {{ getModuleLabel(acc) }}
+                </span>
+              </div>
+            </td>
+            <td>
+              <div class="access-tags">
+                <span *ngFor="let cn of user.centreNoms" class="tag tag-centre">{{ cn }}</span>
+              </div>
+            </td>
+            <td>
+              <span class="status-dot" [class.active]="user.actif"></span>
+              {{ user.actif ? 'Actif' : 'Inactif' }}
+            </td>
+            <td class="actions">
+              <button class="btn-icon" (click)="toggleUserStatus(user)">
+                {{ user.actif ? 'Désactiver' : 'Activer' }}
+              </button>
+              <button class="btn-icon btn-danger" (click)="deleteUser(user)">
+                Supprimer
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="users.length === 0">
+            <td colspan="7" class="empty-state">Aucun utilisateur trouvé</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
