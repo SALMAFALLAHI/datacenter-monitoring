@@ -1,10 +1,9 @@
-﻿apiVersion: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
   namespace: datacenter
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: backend
@@ -16,8 +15,16 @@ spec:
       containers:
         - name: backend
           image: datacenter-backend:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
           env:
             - name: SPRING_DATASOURCE_URL
               value: jdbc:postgresql://postgres:5432/supervision_db
