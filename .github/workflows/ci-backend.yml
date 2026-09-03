@@ -1,10 +1,11 @@
-﻿name: CI Backend
+name: CI Backend
 
 on:
   push:
     branches: [main, develop]
     paths:
       - 'backend/**'
+      - 'k8s/backend/**'
   pull_request:
     branches: [main, develop]
     paths:
@@ -28,10 +29,13 @@ jobs:
       - run: mvn clean package -DskipTests -B
 
   docker-build:
-    name: Push to GHCR
+    name: Push to GHCR & Update Manifest
     runs-on: ubuntu-latest
     needs: build-and-test
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -47,3 +51,11 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/datacenter-backend:latest
             ghcr.io/${{ github.repository_owner }}/datacenter-backend:${{ github.sha }}
+      - name: Update K8s manifest
+        run: |
+          sed -i "s|image: .*|image: ghcr.io/${{ github.repository_owner }}/datacenter-backend:${{ github.sha }}|" k8s/backend/deployment.yaml
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add k8s/backend/deployment.yaml
+          git commit -m "ci: update backend image to ${{ github.sha }} [skip ci]"
+          git push

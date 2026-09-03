@@ -1,37 +1,36 @@
-name: CI Frontend
+name: CI ML Service
 
 on:
   push:
     branches: [main, develop]
     paths:
-      - 'frontend/**'
-      - 'k8s/frontend/**'
+      - 'ml-service/**'
+      - 'k8s/ml-service/**'
   pull_request:
     branches: [main, develop]
     paths:
-      - 'frontend/**'
+      - 'ml-service/**'
 
 jobs:
-  build:
-    name: Build
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./frontend
+        working-directory: ./ml-service
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: ./frontend/package-lock.json
-      - run: npm ci
-      - run: npm run build -- --configuration production
+          python-version: '3.11'
+      - run: |
+          pip install flake8
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
   docker-build:
     name: Push to GHCR & Update Manifest
     runs-on: ubuntu-latest
-    needs: build
+    needs: lint
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: write
@@ -46,16 +45,16 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v5
         with:
-          context: ./frontend
+          context: ./ml-service
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/datacenter-frontend:latest
-            ghcr.io/${{ github.repository_owner }}/datacenter-frontend:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/datacenter-ml:latest
+            ghcr.io/${{ github.repository_owner }}/datacenter-ml:${{ github.sha }}
       - name: Update K8s manifest
         run: |
-          sed -i "s|image: .*|image: ghcr.io/${{ github.repository_owner }}/datacenter-frontend:${{ github.sha }}|" k8s/frontend/deployment.yaml
+          sed -i "s|image: .*|image: ghcr.io/${{ github.repository_owner }}/datacenter-ml:${{ github.sha }}|" k8s/ml-service/deployment.yaml
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add k8s/frontend/deployment.yaml
-          git commit -m "ci: update frontend image to ${{ github.sha }} [skip ci]"
+          git add k8s/ml-service/deployment.yaml
+          git commit -m "ci: update ml-service image to ${{ github.sha }} [skip ci]"
           git push
