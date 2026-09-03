@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
         - name: ml
-          image: ghcr.io/salmafallahi/datacenter-ml:latest
+          image: datacenter-ml-service:latest
           ports:
             - containerPort: 8000

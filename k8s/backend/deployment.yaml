@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: ghcr.io/salmafallahi/datacenter-backend:latest
+          image: datacenter-backend:latest
           ports:
             - containerPort: 8080
           env:

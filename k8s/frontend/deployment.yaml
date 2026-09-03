@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: votre-dockerhub/datacenter-frontend:latest
+          image: datacenter-frontend:latest
           ports:
             - containerPort: 80
           resources:
