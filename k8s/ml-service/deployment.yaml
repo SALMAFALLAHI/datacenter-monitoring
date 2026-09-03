@@ -4,6 +4,8 @@ metadata:
   name: ml-service
   namespace: datacenter
 spec:
+      imagePullSecrets:
+        - name: ghcr-secret
   replicas: 1
   selector:
     matchLabels:
@@ -13,6 +15,8 @@ spec:
       labels:
         app: ml-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: ml
           image: datacenter-ml-service:latest

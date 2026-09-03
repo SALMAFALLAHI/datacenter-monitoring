@@ -6,6 +6,8 @@ metadata:
   labels:
     app: frontend
 spec:
+      imagePullSecrets:
+        - name: ghcr-secret
   replicas: 2
   selector:
     matchLabels:
@@ -15,6 +17,8 @@ spec:
       labels:
         app: frontend
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: frontend
           image: datacenter-frontend:latest
