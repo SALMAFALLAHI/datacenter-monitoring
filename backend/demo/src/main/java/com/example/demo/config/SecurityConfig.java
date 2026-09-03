@@ -60,11 +60,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
-                
-                // Seulement /api/admin/** = ADMIN
+                .requestMatchers("/actuator/**").permitAll()  
+                .requestMatchers("/error").permitAll() 
+            
+            // Seulement /api/admin/** = ADMIN
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
-                
-                // TOUT le reste = authentifié, @PreAuthorize gère les rôles finement
+            
+            // TOUT le reste = authentifié, @PreAuthorize gère les rôles finement
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())

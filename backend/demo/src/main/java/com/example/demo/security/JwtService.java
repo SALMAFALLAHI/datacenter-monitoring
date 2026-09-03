@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
@@ -33,7 +34,6 @@ public class JwtService {
                 ? user.getDashboardAccess().stream().map(DashboardModule::name).collect(Collectors.toList())
                 : List.of();
 
-        // ===== NOUVEAU : centres assignés =====
         List<Long> centreIds = user.getCentres() != null
                 ? user.getCentres().stream().map(CentreDeDonnees::getIdCentre).collect(Collectors.toList())
                 : List.of();
@@ -50,11 +50,11 @@ public class JwtService {
                 .claim("prenom", user.getPrenom())
                 .claim("nom", user.getNom())
                 .claim("dashboardAccess", accessList)
-                .claim("centreIds", centreIds)        // AJOUTÉ
-                .claim("centreNoms", centreNoms)      // AJOUTÉ
+                .claim("centreIds", centreIds)
+                .claim("centreNoms", centreNoms)
                 .issuedAt(now)
                 .expiration(expiration)
-                .signWith(getSigningKey())
+                .signWith(getSigningKey(), Jwts.SIG.HS256)  // ← ALGORITHME EXPLICITE
                 .compact();
     }
 
@@ -66,7 +66,7 @@ public class JwtService {
                 .subject(email)
                 .issuedAt(now)
                 .expiration(expiration)
-                .signWith(getSigningKey())
+                .signWith(getSigningKey(), Jwts.SIG.HS256)  // ← ALGORITHME EXPLICITE
                 .compact();
     }
 
@@ -93,7 +93,6 @@ public class JwtService {
         return accessList.stream().map(DashboardModule::valueOf).collect(Collectors.toSet());
     }
 
-    // ===== NOUVEAU : extracteurs pour les centres =====
     @SuppressWarnings("unchecked")
     public List<Long> extractCentreIds(String token) {
         Claims claims = extractAllClaims(token);
@@ -131,7 +130,11 @@ public class JwtService {
                 .getPayload();
     }
 
+    // ============================================================
+    // CORRECTION : la clé doit faire au moins 32 caractères (256 bits)
+    // ============================================================
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secretKey.getBytes());
+        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 }
