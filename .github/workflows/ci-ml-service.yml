@@ -54,7 +54,7 @@ jobs:
         run: |
           sed -i "s|image: .*|image: ghcr.io/${{ github.repository_owner }}/datacenter-ml:${{ github.sha }}|" k8s/ml-service/deployment.yaml
           git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.email "188911507+SALMAFALLAHI@users.noreply.github.com"
           git add k8s/ml-service/deployment.yaml
           git commit -m "ci: update ml-service image to ${{ github.sha }} [skip ci]"
           git push
