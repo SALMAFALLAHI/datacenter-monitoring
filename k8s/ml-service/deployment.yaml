@@ -3,8 +3,6 @@ kind: Deployment
 metadata:
   name: ml-service
   namespace: datacenter
-  labels:
-    app: ml-service
 spec:
   replicas: 1
   selector:
@@ -16,11 +14,7 @@ spec:
         app: ml-service
     spec:
       containers:
-        - name: ml-service
-          image: votre-dockerhub/datacenter-ml:latest
+        - name: ml
+          image: ghcr.io/salmafallahi/datacenter-ml:latest
           ports:
             - containerPort: 8000
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "250m"

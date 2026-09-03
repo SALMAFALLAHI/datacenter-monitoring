@@ -3,10 +3,8 @@ kind: Deployment
 metadata:
   name: backend
   namespace: datacenter
-  labels:
-    app: backend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: backend
@@ -17,43 +15,24 @@ spec:
     spec:
       containers:
         - name: backend
-          image: your-dockerhub-username/datacenter-backend:latest
+          image: ghcr.io/salmafallahi/datacenter-backend:latest
           ports:
             - containerPort: 8080
           env:
             - name: SPRING_DATASOURCE_URL
-              value: "jdbc:postgresql://postgres-service:5432/supervision_db"
+              value: jdbc:postgresql://postgres:5432/supervision_db
             - name: SPRING_DATASOURCE_USERNAME
-              valueFrom:
-                configMapKeyRef:
-                  name: postgres-config
-                  key: POSTGRES_USER
+              value: supervision_user
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: postgres-secret
-                  key: POSTGRES_PASSWORD
-            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
-              value: "update"
-            - name: ML_SERVICE_URL
-              value: "http://ml-service:8000"
+                  key: password
+            - name: PROMETHEUS_URL
+              value: http://prometheus:9090
+            - name: MAIL_USER
+              value: salmafallahi2@gmail.com
+            - name: MAIL_PASSWORD
+              value: udfs fcnh mnzj cyij
             - name: APP_JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: backend-secret
-                  key: JWT_SECRET
-            - name: SPRING_MAIL_HOST
-              value: "smtp.gmail.com"
-            - name: SPRING_MAIL_PORT
-              value: "587"
-            - name: SPRING_MAIL_USERNAME
-              value: "your-email@gmail.com"
-            - name: SPRING_MAIL_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: backend-secret
-                  key: MAIL_PASSWORD
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "500m"
+              value: votre-cle-super-secrete-pour-jwt-2024!
