@@ -16,7 +16,7 @@ spec:
         - name: ghcr-secret
       containers:
         - name: backend
-          image: datacenter-backend:latest
+          image: ghcr.io/salmafallahi/datacenter-backend:302e68893f6c7b58eafb916af15691e5b27fdf23
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
