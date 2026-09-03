@@ -1,12 +1,9 @@
-﻿apiVersion: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ml-service
   namespace: datacenter
 spec:
-      imagePullSecrets:
-        - name: ghcr-secret
-  replicas: 1
   selector:
     matchLabels:
       app: ml-service
@@ -20,5 +17,13 @@ spec:
       containers:
         - name: ml
           image: datacenter-ml-service:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

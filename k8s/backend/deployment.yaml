@@ -4,8 +4,6 @@ metadata:
   name: backend
   namespace: datacenter
 spec:
-      imagePullSecrets:
-        - name: ghcr-secret
   selector:
     matchLabels:
       app: backend

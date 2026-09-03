@@ -1,14 +1,9 @@
-﻿apiVersion: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
   namespace: datacenter
-  labels:
-    app: frontend
 spec:
-      imagePullSecrets:
-        - name: ghcr-secret
-  replicas: 2
   selector:
     matchLabels:
       app: frontend
@@ -22,9 +17,13 @@ spec:
       containers:
         - name: frontend
           image: datacenter-frontend:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
           resources:
             requests:
-              memory: "128Mi"
               cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
