@@ -35,7 +35,7 @@ export interface BatchDecisionRequest {
 
 @Injectable({ providedIn: 'root' })
 export class AnomalieService {
-  private readonly api = 'http://localhost:8080/api/anomalies';
+  private readonly api = '/api/anomalies';
 
   constructor(private http: HttpClient) {}
 

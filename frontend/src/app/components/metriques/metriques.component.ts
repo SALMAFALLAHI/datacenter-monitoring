@@ -60,8 +60,8 @@ export class MetriquesComponent implements AfterViewInit, OnDestroy {
   private charts: Chart[] = [];
   private refreshSubscription?: Subscription;
 
-  private apiUrl = 'http://localhost:8080/api/metriques';
-  private anomaliesUrl = 'http://localhost:8080/api/anomalies';
+  private apiUrl = '/api/metriques';
+  private anomaliesUrl = '/api/anomalies';
 
   private readonly HISTORIQUE_MINUTES = 2880;
 

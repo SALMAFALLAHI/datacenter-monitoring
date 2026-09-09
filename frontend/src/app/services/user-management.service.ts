@@ -10,7 +10,7 @@ export interface CentreOption {
 
 @Injectable({ providedIn: 'root' })
 export class UserManagementService {
-  private readonly API_URL = 'http://localhost:8080/api/admin/users';
+  private readonly API_URL = '/api/admin/users';
 
   constructor(private http: HttpClient) {}
 
