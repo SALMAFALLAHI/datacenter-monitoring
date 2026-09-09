@@ -1,3 +1,4 @@
+
 package com.example.demo.services;
 
 import com.example.demo.entity.Equipement;
@@ -16,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,7 +27,7 @@ public class PrometheusService {
     private static final Logger logger = LoggerFactory.getLogger(PrometheusService.class);
     private final SecurityUtils securityUtils;
 
-    @Value("${prometheus.url:http://172.30.198.232:9090}")
+    @Value("${prometheus.url:http://prometheus:9090}")
     private String prometheusUrl;
 
     private final RestTemplate restTemplate;
@@ -35,10 +35,8 @@ public class PrometheusService {
     private final EquipementRepository equipementRepository;
     private final CsvDataLogger csvDataLogger;
 
-    // =====  Injection du service ML =====
     private final MlStressDetectionService mlStressDetectionService;
     private final AnomalyDetectionService anomalyDetectionService;
-    // =============================================
 
     public PrometheusService(MetriqueRepository metriqueRepository, EquipementRepository equipementRepository, MlStressDetectionService mlStressDetectionService, AnomalyDetectionService anomalyDetectionService, SecurityUtils securityUtils) {
         this.restTemplate = new RestTemplate();
@@ -59,23 +57,25 @@ public class PrometheusService {
         List<Equipement> equipements = equipementRepository.findAll();
 
         for (Equipement equipement : equipements) {
-            if (equipement.getCentreDeDonnees() != null 
+            if (equipement.getCentreDeDonnees() != null
                 && equipement.getCentreDeDonnees().getType() == TypeInfrastructure.CLOUD) {
-            logger.debug("⏩ Skip {} (géré par CloudMetricsScheduler)", equipement.getNom());
-            continue;
-        }
+                logger.debug("⏩ Skip {} (géré par CloudMetricsScheduler)", equipement.getNom());
+                continue;
+            }
             try {
                 String ip = equipement.getAdresseIP();
-                logger.info("📡 Collecte pour {} (IP: {})", equipement.getNom(), ip);
+                // 👇 Instance Prometheus correspondant à cet équipement
+                String instance = ip + ":9100";
+                logger.info("📡 Collecte pour {} (IP: {}, instance: {})", equipement.getNom(), ip, instance);
 
-                Float cpu = collecterCpu();
-                Float ram = collecterRam();
-                Double ramPct = collecterRamPct();
-                Double usedGb = collecterUsedGb();
-                Double availableGb = collecterAvailableGb();
-                Double swapPct = collecterSwapPct();
-                Float disque = collecterDisk();
-                Float reseau = collecterNetwork();
+                Float cpu = collecterCpu(instance);
+                Float ram = collecterRam(instance);
+                Double ramPct = collecterRamPct(instance);
+                Double usedGb = collecterUsedGb(instance);
+                Double availableGb = collecterAvailableGb(instance);
+                Double swapPct = collecterSwapPct(instance);
+                Float disque = collecterDisk(instance);
+                Float reseau = collecterNetwork(instance);
 
                 logger.info("📊 Valeurs brutes pour {}: cpu={}, ram={}, ramPct={}, usedGb={}, availableGb={}, swapPct={}, disque={}, reseau={}",
                     equipement.getNom(), cpu, ram, ramPct, usedGb, availableGb, swapPct, disque, reseau);
@@ -94,21 +94,18 @@ public class PrometheusService {
 
                 Metrique saved = metriqueRepository.save(metrique);
                 logger.info("✅ Metrique sauvegardee pour {} (RAM: {}%, USED: {}GB, AVAIL: {}GB, SWAP: {}%)",
-               
                     equipement.getNom(), ramPct, usedGb, availableGb, swapPct);
-                     csvDataLogger.log(saved);
+                csvDataLogger.log(saved);
                 String emailUser = securityUtils.getEmailUtilisateurConnecte();
-                // =====  Detection ML =====
+
                 logger.info("🤖 Appel detection ML pour {}...", equipement.getNom());
-                
                 var mlResult = mlStressDetectionService.detectStress(saved, emailUser);
-                            if (mlResult != null) {
-                                    logger.info("🎯 Resultat ML: alertLevel={}, proba={}, isStress={}",
-                        mlResult.getAlertLevel(), mlResult.getProba(), mlResult.getIsStress());}
-                        // 2. Detection CPU/Disk/Network (regles metier)
-                        logger.info("🤖 Detection CPU/Disk/Network (regles)...");
-                        anomalyDetectionService.detecterTout(saved, emailUser);
-                // =================================
+                if (mlResult != null) {
+                    logger.info("🎯 Resultat ML: alertLevel={}, proba={}, isStress={}",
+                        mlResult.getAlertLevel(), mlResult.getProba(), mlResult.getIsStress());
+                }
+                logger.info("🤖 Detection CPU/Disk/Network (regles)...");
+                anomalyDetectionService.detecterTout(saved, emailUser);
 
             } catch (Exception e) {
                 logger.error("❌ Erreur collecte pour {}: {}", equipement.getNom(), e.getMessage(), e);
@@ -133,9 +130,12 @@ public class PrometheusService {
         return response;
     }
 
-    private Float collecterCpu() {
+    // ===== Collecteurs filtrés par instance =====
+
+    private Float collecterCpu(String instance) {
         try {
-            String response = queryPrometheus("100 - (avg(irate(node_cpu_seconds_total{mode='idle'}[5m])) * 100)");
+            String response = queryPrometheus(
+                "100 - (avg(irate(node_cpu_seconds_total{mode='idle',instance='" + instance + "'}[5m])) * 100)");
             return parseFloat(response, "cpu");
         } catch (Exception e) {
             logger.error("❌ Erreur CPU: {}", e.getMessage());
@@ -143,9 +143,10 @@ public class PrometheusService {
         }
     }
 
-    private Float collecterRam() {
+    private Float collecterRam(String instance) {
         try {
-            String response = queryPrometheus("100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))");
+            String response = queryPrometheus(
+                "100 * (1 - (node_memory_MemAvailable_bytes{instance='" + instance + "'} / node_memory_MemTotal_bytes{instance='" + instance + "'}))");
             return parseFloat(response, "ram");
         } catch (Exception e) {
             logger.error("❌ Erreur RAM: {}", e.getMessage());
@@ -153,9 +154,10 @@ public class PrometheusService {
         }
     }
 
-    private Double collecterRamPct() {
+    private Double collecterRamPct(String instance) {
         try {
-            String response = queryPrometheus("100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))");
+            String response = queryPrometheus(
+                "100 * (1 - (node_memory_MemAvailable_bytes{instance='" + instance + "'} / node_memory_MemTotal_bytes{instance='" + instance + "'}))");
             return parseDouble(response, "ramPct");
         } catch (Exception e) {
             logger.error("❌ Erreur RAM%: {}", e.getMessage());
@@ -163,9 +165,10 @@ public class PrometheusService {
         }
     }
 
-    private Double collecterUsedGb() {
+    private Double collecterUsedGb(String instance) {
         try {
-            String response = queryPrometheus("(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / 1024 / 1024 / 1024");
+            String response = queryPrometheus(
+                "(node_memory_MemTotal_bytes{instance='" + instance + "'} - node_memory_MemAvailable_bytes{instance='" + instance + "'}) / 1024 / 1024 / 1024");
             return parseDouble(response, "usedGb");
         } catch (Exception e) {
             logger.error("❌ Erreur UsedGB: {}", e.getMessage());
@@ -173,9 +176,10 @@ public class PrometheusService {
         }
     }
 
-    private Double collecterAvailableGb() {
+    private Double collecterAvailableGb(String instance) {
         try {
-            String response = queryPrometheus("node_memory_MemAvailable_bytes / 1024 / 1024 / 1024");
+            String response = queryPrometheus(
+                "node_memory_MemAvailable_bytes{instance='" + instance + "'} / 1024 / 1024 / 1024");
             return parseDouble(response, "availableGb");
         } catch (Exception e) {
             logger.error("❌ Erreur AvailGB: {}", e.getMessage());
@@ -183,10 +187,12 @@ public class PrometheusService {
         }
     }
 
-    private Double collecterSwapPct() {
+    private Double collecterSwapPct(String instance) {
         try {
-            Double total = parseDouble(queryPrometheus("node_memory_SwapTotal_bytes"), "swapTotal");
-            Double free = parseDouble(queryPrometheus("node_memory_SwapFree_bytes"), "swapFree");
+            Double total = parseDouble(queryPrometheus(
+                "node_memory_SwapTotal_bytes{instance='" + instance + "'}"), "swapTotal");
+            Double free = parseDouble(queryPrometheus(
+                "node_memory_SwapFree_bytes{instance='" + instance + "'}"), "swapFree");
 
             if (total == null || total <= 0.0d) {
                 logger.info("⚠️ Swap total = 0 ou null");
@@ -202,9 +208,10 @@ public class PrometheusService {
         }
     }
 
-    private Float collecterDisk() {
+    private Float collecterDisk(String instance) {
         try {
-            String response = queryPrometheus("100 * (1 - (node_filesystem_avail_bytes{mountpoint='/'} / node_filesystem_size_bytes{mountpoint='/'}))");
+            String response = queryPrometheus(
+                "100 * (1 - (node_filesystem_avail_bytes{mountpoint='/',instance='" + instance + "'} / node_filesystem_size_bytes{mountpoint='/',instance='" + instance + "'}))");
             return parseFloat(response, "disk");
         } catch (Exception e) {
             logger.error("❌ Erreur Disk: {}", e.getMessage());
@@ -212,9 +219,10 @@ public class PrometheusService {
         }
     }
 
-    private Float collecterNetwork() {
+    private Float collecterNetwork(String instance) {
         try {
-            String response = queryPrometheus("sum(rate(node_network_receive_bytes_total{device='ens33'}[5m])) / 1024 / 1024");
+            String response = queryPrometheus(
+                "sum(rate(node_network_receive_bytes_total{device='ens33',instance='" + instance + "'}[5m])) / 1024 / 1024");
             return parseFloat(response, "network");
         } catch (Exception e) {
             logger.error("❌ Erreur Network: {}", e.getMessage());
@@ -264,3 +272,4 @@ public class PrometheusService {
         return val;
     }
 }
+
