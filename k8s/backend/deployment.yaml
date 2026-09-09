@@ -4,6 +4,7 @@ metadata:
   name: backend
   namespace: datacenter
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: backend
