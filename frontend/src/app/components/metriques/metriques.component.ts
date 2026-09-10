@@ -294,6 +294,7 @@ export class MetriquesComponent implements AfterViewInit, OnDestroy {
   }
 
   // 👇 MODIFIÉ : une courbe par serveur
+  // Recrée le graphique à chaque refresh (rendu propre, évite les états Chart.js incohérents)
   private updateHistoriqueCharts(
     historique: MetriqueSeriePoint[],
     anomalies: Anomalie[],
@@ -301,52 +302,70 @@ export class MetriquesComponent implements AfterViewInit, OnDestroy {
     idsEquipements: number[],
     latest: MetriqueLatest[]
   ): void {
-    const latencyChart = this.charts[1];
+    if (!parEquipement || parEquipement.length === 0) return;
 
-    if (latencyChart && parEquipement && parEquipement.length > 0) {
-      const palette = ['#f59e0b', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
+    const latCtx = this.latencyChartRef.nativeElement.getContext('2d');
+    if (!latCtx) return;
 
-      // Nom de chaque équipement (depuis "latest")
-      const nomParId = new Map<number, string>();
-      latest.forEach(m => nomParId.set(m.idEquipement, m.nomEquipement));
+    const palette = ['#f59e0b', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
+    const nomParId = new Map<number, string>();
+    latest.forEach(m => nomParId.set(m.idEquipement, m.nomEquipement));
 
-      // Dates uniques (toutes séries confondues), triées, limitées aux 200 derniers points
-      const toutesDates = new Set<string>();
-      parEquipement.forEach(serie => serie.forEach((m: any) => toutesDates.add(m.dateCollecte)));
-      const labels = Array.from(toutesDates).sort()
-        .slice(-this.MAX_POINTS_PAR_SERVEUR);
+    const toutesDates = new Set<string>();
+    parEquipement.forEach(serie => serie.forEach((m: any) => toutesDates.add(m.dateCollecte)));
+    const labels = Array.from(toutesDates).sort().slice(-this.MAX_POINTS_PAR_SERVEUR);
 
-      // Un dataset coloré par serveur
-      const datasets = parEquipement.map((serie, idx) => {
-        const parDate = new Map<string, number>();
-        serie.forEach((m: any) => parDate.set(m.dateCollecte, m.reseau ?? 0));
-        const idEq = idsEquipements[idx];
-        return {
-          label: nomParId.get(idEq) || `Serveur ${idEq}`,
-          data: labels.map(d => parDate.has(d) ? parDate.get(d)! : null),
-          borderColor: palette[idx % palette.length],
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          fill: false,
-          tension: 0.4,
-          pointRadius: 0,
-          spanGaps: false
-        };
-      });
+    const datasets = parEquipement.map((serie, idx) => {
+      const parDate = new Map<string, number>();
+      serie.forEach((m: any) => parDate.set(m.dateCollecte, m.reseau ?? 0));
+      const idEq = idsEquipements[idx];
+      const couleur = palette[idx % palette.length];
+      return {
+        label: nomParId.get(idEq) || `Serveur ${idEq}`,
+        data: labels.map(d => parDate.has(d) ? parDate.get(d)! : null),
+        borderColor: couleur,
+        backgroundColor: couleur + '33',
+        borderWidth: 2,
+        fill: false,
+        tension: 0.4,
+        pointRadius: 0,
+        spanGaps: true
+      };
+    });
 
-      console.log('[DEBUG]', datasets.map(ds => ({label: ds.label, n: ds.data.length, nulls: ds.data.filter(v => v === null).length, last5: JSON.stringify(ds.data.slice(-5))})));
-      latencyChart.data.labels = labels.map(d => new Date(d).toLocaleTimeString());
-      latencyChart.data.datasets = datasets;
-      latencyChart.update();
+    // Détruit l'ancien graphique réseau et le recrée from scratch
+    if (this.charts[1]) {
+      this.charts[1].destroy();
+      this.charts.splice(1, 1);
     }
 
-    // Graphique incidents inchangé (basé sur l'historique agrégé)
+    this.charts.splice(1, 0, new Chart(latCtx, {
+      type: 'line',
+      data: {
+        labels: labels.map(d => new Date(d).toLocaleTimeString()),
+        datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'top', align: 'end' },
+          zoom: {
+            pan: { enabled: true, mode: 'x', threshold: 5 },
+            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, drag: { enabled: false }, mode: 'x' }
+          }
+        },
+        scales: { y: { beginAtZero: true } }
+      }
+    }));
+
+    // Graphique incidents (inchangé)
     if (historique && historique.length > 0) {
-      const labels = historique.map(p => new Date(p.dateCollecte).toLocaleTimeString());
+      const hLabels = historique.map(p => new Date(p.dateCollecte).toLocaleTimeString());
       const incidentChart = this.charts[3];
       if (incidentChart) {
         const counts = this.countAnomaliesPerBucket(historique, anomalies);
-        incidentChart.data.labels = labels;
+        incidentChart.data.labels = hLabels;
         incidentChart.data.datasets[0].data = counts;
         incidentChart.update();
       }
