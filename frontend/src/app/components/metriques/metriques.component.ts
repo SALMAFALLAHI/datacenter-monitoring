@@ -334,6 +334,7 @@ export class MetriquesComponent implements AfterViewInit, OnDestroy {
         };
       });
 
+      console.log('[DEBUG]', datasets.map(ds => ({label: ds.label, n: ds.data.length, nulls: ds.data.filter(v => v === null).length, last5: JSON.stringify(ds.data.slice(-5))})));
       latencyChart.data.labels = labels.map(d => new Date(d).toLocaleTimeString());
       latencyChart.data.datasets = datasets;
       latencyChart.update();
