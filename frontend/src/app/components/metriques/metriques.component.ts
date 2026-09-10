@@ -64,8 +64,8 @@ export class MetriquesComponent implements AfterViewInit, OnDestroy {
   private anomaliesUrl = '/api/anomalies';
 
   private readonly HISTORIQUE_MINUTES = 2880;
+  private readonly MAX_POINTS_PAR_SERVEUR = 200;
 
-  // ===== NOUVEAU : centres et sélection =====
   centres: Centre[] = [];
   centreSelectionne: number | null = null;
 
@@ -80,7 +80,7 @@ export class MetriquesComponent implements AfterViewInit, OnDestroy {
     Chart.defaults.font.family = "'Inter','Roboto',sans-serif";
 
     this.initCharts();
-    this.loadCentres(); // NOUVEAU
+    this.loadCentres();
   }
 
   ngOnDestroy(): void {
@@ -89,7 +89,6 @@ export class MetriquesComponent implements AfterViewInit, OnDestroy {
     this.charts = [];
   }
 
-  // ===== NOUVEAU : charge les centres selon le role =====
   loadCentres(): void {
     const url = this.auth.isAdmin() ? '/api/centres' : '/api/centres/mes-centres';
 
@@ -106,7 +105,6 @@ export class MetriquesComponent implements AfterViewInit, OnDestroy {
             this.startRefresh();
           }
         } else if (this.centres.length === 1) {
-          // Auto-select si un seul centre
           this.centreSelectionne = this.centres[0].idCentre;
           this.startRefresh();
         }
@@ -115,7 +113,6 @@ export class MetriquesComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  // ===== NOUVEAU : changement de centre =====
   onCentreChange(): void {
     if (this.centreSelectionne) {
       localStorage.setItem('selectedCentre', this.centreSelectionne.toString());
@@ -139,28 +136,49 @@ export class MetriquesComponent implements AfterViewInit, OnDestroy {
             .set('minutes', this.HISTORIQUE_MINUTES.toString())
             .set('centreId', this.centreSelectionne!.toString());
 
-          return forkJoin({
-            latest: this.http.get<MetriqueLatest[]>(this.apiUrl, { params }).pipe(
-              catchError(err => { console.error('[Metriques] Erreur latest:', err); return of([] as MetriqueLatest[]); })
-            ),
-            historique: this.http.get<MetriqueSeriePoint[]>(
-              `${this.apiUrl}/historique`, { params: histParams }
-            ).pipe(
-              catchError(err => { console.error('[Metriques] Erreur historique:', err); return of([] as MetriqueSeriePoint[]); })
-            ),
-            anomalies: this.http.get<Anomalie[]>(
-              `${this.anomaliesUrl}?centreId=${this.centreSelectionne}`
-            ).pipe(
-              catchError(err => { console.error('[Metriques] Erreur anomalies:', err); return of([] as Anomalie[]); })
-            )
-          });
+          // 1. D'abord "latest" pour connaître la liste des équipements
+          return this.http.get<MetriqueLatest[]>(this.apiUrl, { params }).pipe(
+            switchMap(latest => {
+              const idsEquipements = [...new Set(latest.map(m => m.idEquipement))];
+
+              // 2. Une requête d'historique PAR équipement (endpoint existant)
+              const historiquesParEquipement = idsEquipements.length > 0
+                ? forkJoin(
+                    idsEquipements.map(id =>
+                      this.http.get<any[]>(`${this.apiUrl}/equipement/${id}`).pipe(
+                        catchError(err => {
+                          console.error(`[Metriques] Erreur historique equipement ${id}:`, err);
+                          return of([] as any[]);
+                        })
+                      )
+                    )
+                  )
+                : of([] as any[][]);
+
+              return forkJoin({
+                latest: of(latest),
+                idsEquipements: of(idsEquipements),
+                historique: this.http.get<MetriqueSeriePoint[]>(
+                  `${this.apiUrl}/historique`, { params: histParams }
+                ).pipe(
+                  catchError(err => { console.error('[Metriques] Erreur historique:', err); return of([] as MetriqueSeriePoint[]); })
+                ),
+                parEquipement: historiquesParEquipement,
+                anomalies: this.http.get<Anomalie[]>(
+                  `${this.anomaliesUrl}?centreId=${this.centreSelectionne}`
+                ).pipe(
+                  catchError(err => { console.error('[Metriques] Erreur anomalies:', err); return of([] as Anomalie[]); })
+                )
+              });
+            })
+          );
         })
       )
       .subscribe({
-        next: ({ latest, historique, anomalies }) => {
-          console.log('Metriques recues :', { latest, historique, anomalies });
+        next: ({ latest, idsEquipements, historique, parEquipement, anomalies }) => {
+          console.log('Metriques recues :', { latest, historique, anomalies, parEquipement });
           this.updateSnapshotCharts(latest);
-          this.updateHistoriqueCharts(historique, anomalies);
+          this.updateHistoriqueCharts(historique, anomalies, parEquipement, idsEquipements, latest);
         },
         error: (error) => console.error('Erreur globale:', error)
       });
@@ -191,23 +209,12 @@ export class MetriquesComponent implements AfterViewInit, OnDestroy {
     if (latCtx) {
       this.charts.push(new Chart(latCtx, {
         type: 'line',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Reseau (Mo/s)',
-            data: [],
-            borderColor: '#f59e0b',
-            backgroundColor: 'rgba(245,158,11,0.1)',
-            fill: true,
-            tension: 0.4,
-            pointRadius: 3
-          }]
-        },
+        data: { labels: [], datasets: [] },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { display: false },
+            legend: { display: true, position: 'top', align: 'end' },
             zoom: {
               pan: { enabled: true, mode: 'x', threshold: 5 },
               zoom: { wheel: { enabled: true }, pinch: { enabled: true }, drag: { enabled: false }, mode: 'x' }
@@ -286,24 +293,62 @@ export class MetriquesComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private updateHistoriqueCharts(historique: MetriqueSeriePoint[], anomalies: Anomalie[]): void {
-    if (!historique || historique.length === 0) return;
-
-    const labels = historique.map(p => new Date(p.dateCollecte).toLocaleTimeString());
-
+  // 👇 MODIFIÉ : une courbe par serveur
+  private updateHistoriqueCharts(
+    historique: MetriqueSeriePoint[],
+    anomalies: Anomalie[],
+    parEquipement: any[][],
+    idsEquipements: number[],
+    latest: MetriqueLatest[]
+  ): void {
     const latencyChart = this.charts[1];
-    if (latencyChart) {
-      latencyChart.data.labels = labels;
-      latencyChart.data.datasets[0].data = historique.map(p => p.reseauMoyen);
+
+    if (latencyChart && parEquipement && parEquipement.length > 0) {
+      const palette = ['#f59e0b', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
+
+      // Nom de chaque équipement (depuis "latest")
+      const nomParId = new Map<number, string>();
+      latest.forEach(m => nomParId.set(m.idEquipement, m.nomEquipement));
+
+      // Dates uniques (toutes séries confondues), triées, limitées aux 200 derniers points
+      const toutesDates = new Set<string>();
+      parEquipement.forEach(serie => serie.forEach((m: any) => toutesDates.add(m.dateCollecte)));
+      const labels = Array.from(toutesDates).sort()
+        .slice(-this.MAX_POINTS_PAR_SERVEUR);
+
+      // Un dataset coloré par serveur
+      const datasets = parEquipement.map((serie, idx) => {
+        const parDate = new Map<string, number>();
+        serie.forEach((m: any) => parDate.set(m.dateCollecte, m.reseau ?? 0));
+        const idEq = idsEquipements[idx];
+        return {
+          label: nomParId.get(idEq) || `Serveur ${idEq}`,
+          data: labels.map(d => parDate.has(d) ? parDate.get(d)! : null),
+          borderColor: palette[idx % palette.length],
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          fill: false,
+          tension: 0.4,
+          pointRadius: 0,
+          spanGaps: false
+        };
+      });
+
+      latencyChart.data.labels = labels.map(d => new Date(d).toLocaleTimeString());
+      latencyChart.data.datasets = datasets;
       latencyChart.update();
     }
 
-    const incidentChart = this.charts[3];
-    if (incidentChart) {
-      const counts = this.countAnomaliesPerBucket(historique, anomalies);
-      incidentChart.data.labels = labels;
-      incidentChart.data.datasets[0].data = counts;
-      incidentChart.update();
+    // Graphique incidents inchangé (basé sur l'historique agrégé)
+    if (historique && historique.length > 0) {
+      const labels = historique.map(p => new Date(p.dateCollecte).toLocaleTimeString());
+      const incidentChart = this.charts[3];
+      if (incidentChart) {
+        const counts = this.countAnomaliesPerBucket(historique, anomalies);
+        incidentChart.data.labels = labels;
+        incidentChart.data.datasets[0].data = counts;
+        incidentChart.update();
+      }
     }
   }
 
